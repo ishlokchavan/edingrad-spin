@@ -678,7 +678,7 @@ export default function Root() {
               textAlign: 'left',
             }}>
               <div style={{ fontSize: 14, color: C.text2, marginBottom: 16, fontWeight: 600 }}>
-                📋 Here's What Happens Next:
+                📋 Here&apos;s What Happens Next:
               </div>
               <div style={{ fontSize: 13, color: C.text, lineHeight: 2 }}>
                 <div style={{ marginBottom: 12 }}>
@@ -691,7 +691,7 @@ export default function Root() {
                   <span style={{ color: C.gold, fontWeight: 700 }}>3. Earn Spins</span> — Each deal = multiple spins awarded
                 </div>
                 <div>
-                  <span style={{ color: C.gold, fontWeight: 700 }}>4. Receive Link</span> — We'll send you your spin link via email/ whatsapp
+                  <span style={{ color: C.gold, fontWeight: 700 }}>4. Receive Link</span> — We&apos;ll send you your spin link via email/ whatsapp
                 </div>
               </div>
             </div>

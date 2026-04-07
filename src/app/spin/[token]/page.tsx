@@ -59,9 +59,8 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
 
     const s = sess as Session
 
-    // Check expiry
+    // Check completion status
     if (s.is_complete) { setState('complete'); setSession(s); }
-    else if (s.expires_at && new Date(s.expires_at) < new Date()) { setState('expired'); setSession(s); return }
     else setState('ready')
 
     setSession(s)
