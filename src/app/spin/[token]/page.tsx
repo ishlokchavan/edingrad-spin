@@ -92,19 +92,30 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
       .select('*').eq('session_id', s.id).order('spin_number')
     if (existingResults?.length) setResults(existingResults as SpinResult[])
 
-    // Load all gifts from the deal's slab categories (full wheel display)
+    // Load all gifts from the deal's slab (full wheel display)
     if (dealData?.slab_id) {
-      const { data: cats } = await db.from('gift_categories').select('id').eq('slab_id', dealData.slab_id).eq('is_active', true)
-      if (cats?.length) {
-        const catIds = cats.map((c: any) => c.id)
-        const { data: giftData } = await db.from('gifts')
-          .select('id,name,emoji,weight,value_aed,description')
-          .in('category_id', catIds)
-          .eq('is_active', true)
-        if (giftData?.length) {
-          setGifts(giftData as Gift[])
-          setWheelGifts(buildWheelGifts(giftData as Gift[]))
+      const { data: giftData, error: giftErr } = await db.from('gifts')
+        .select('id,name,emoji,weight,value_aed,description')
+        .eq('slab_id', dealData.slab_id)
+        .eq('is_active', true)
+
+      // Backward-compatible fallback for legacy schema (categories -> gifts).
+      if (giftErr) {
+        const { data: cats } = await db.from('gift_categories').select('id').eq('slab_id', dealData.slab_id).eq('is_active', true)
+        if (cats?.length) {
+          const catIds = cats.map((c: any) => c.id)
+          const { data: legacyGiftData } = await db.from('gifts')
+            .select('id,name,emoji,weight,value_aed,description')
+            .in('category_id', catIds)
+            .eq('is_active', true)
+          if (legacyGiftData?.length) {
+            setGifts(legacyGiftData as Gift[])
+            setWheelGifts(buildWheelGifts(legacyGiftData as Gift[]))
+          }
         }
+      } else if (giftData?.length) {
+        setGifts(giftData as Gift[])
+        setWheelGifts(buildWheelGifts(giftData as Gift[]))
       }
     }
   }
