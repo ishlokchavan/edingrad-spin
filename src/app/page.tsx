@@ -135,15 +135,17 @@ export default function Root() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
+    <div className="page-root" style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
       {/* Navigation Bar */}
-      <div style={{
+      <div className="page-nav" style={{
         background: C.surface,
         borderBottom: `1px solid ${C.border}`,
         padding: '16px 40px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
       }}>
         <div style={{
           fontFamily: "'Playfair Display', serif",
@@ -182,7 +184,7 @@ export default function Root() {
       </div>
 
       {/* Hero Section */}
-      <div style={{
+      <div className="page-hero" style={{
         padding: '80px 40px',
         textAlign: 'center',
         background: `linear-gradient(135deg, ${C.bg} 0%, ${C.surface} 100%)`,
@@ -195,7 +197,7 @@ export default function Root() {
             marginBottom: 16,
             fontWeight: 600,
           }}>
-            GROW TOEGETHER
+            GROW TOGETHER
           </div>
 
           <h1 style={{
@@ -255,7 +257,7 @@ export default function Root() {
       {/* 4 Features Section */}
       <div style={{ padding: '60px 40px', background: C.bg }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{
+          <div className="feature-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: 32,
@@ -285,7 +287,7 @@ export default function Root() {
       </div>
 
       {/* Commission Breakdown */}
-      <div style={{ padding: '60px 40px', background: C.surface }}>
+      <div className="commission-section" style={{ padding: '60px 40px', background: C.surface }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <h2 style={{
@@ -301,9 +303,9 @@ export default function Root() {
             </p>
           </div>
 
-          <div style={{
+          <div className="commission-grid" style={{
             display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: 32,
             alignItems: 'center',
             marginBottom: 48,
@@ -314,6 +316,8 @@ export default function Root() {
               borderRadius: 12,
               padding: 32,
               textAlign: 'center',
+              width: '100%',
+              boxSizing: 'border-box',
             }}>
               <div style={{ fontSize: 56, fontWeight: 900, color: C.gold, marginBottom: 8 }}>
                 80%
@@ -326,7 +330,7 @@ export default function Root() {
               </div>
             </div>
 
-            <div style={{ fontSize: 32, color: C.gold, fontWeight: 900 }}>
+            <div className="commission-divider" style={{ fontSize: 32, color: C.gold, fontWeight: 900 }}>
               +
             </div>
 
@@ -365,7 +369,7 @@ export default function Root() {
       </div>
 
       {/* How It Works */}
-      <div style={{ padding: '60px 40px', background: C.bg }}>
+      <div className="how-section" style={{ padding: '60px 40px', background: C.bg }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <h2 style={{
@@ -374,11 +378,11 @@ export default function Root() {
               fontWeight: 900,
               marginBottom: 16,
             }}>
-              How The Gamification Works
+              How It Works
             </h2>
           </div>
 
-          <div style={{
+          <div className="how-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: 24,
@@ -409,7 +413,7 @@ export default function Root() {
               </p>
             </div>
 
-            <div style={{
+            <div className="reward-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 24,
@@ -424,7 +428,7 @@ export default function Root() {
 
       {/* Registration Form Modal */}
       {showForm && (
-        <div style={{
+        <div className="modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -438,7 +442,7 @@ export default function Root() {
           zIndex: 1000,
           overflowY: 'auto',
         }}>
-          <div style={{
+          <div className="modal-dialog" style={{
             background: C.surface,
             border: `1px solid ${C.borderGold}`,
             borderRadius: 8,
@@ -608,7 +612,7 @@ export default function Root() {
       )}
 
       {/* Footer */}
-      <div style={{
+      <div className="page-footer" style={{
         padding: '32px 40px',
         textAlign: 'center',
         borderTop: `1px solid ${C.border}`,
@@ -620,7 +624,7 @@ export default function Root() {
 
       {/* Thank You Screen Modal */}
       {showThanks && (
-        <div style={{
+        <div className="modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -633,7 +637,7 @@ export default function Root() {
           padding: 20,
           zIndex: 2000,
         }}>
-          <div style={{
+          <div className="modal-dialog" style={{
             background: C.surface,
             border: `2px solid ${C.gold}`,
             borderRadius: 12,
@@ -745,6 +749,38 @@ export default function Root() {
           </div>
         </div>
       )}
+      <style>{`
+        .page-nav { justify-content: space-between; }
+        .page-nav button { min-width: 180px; }
+        .page-hero { padding: 80px 40px; }
+        .page-hero h1 { font-size: clamp(42px, 8vw, 72px) !important; }
+        .page-hero p { max-width: 100%; }
+        .feature-grid, .how-grid, .reward-grid { gap: 24px; }
+        .commission-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+        .modal-overlay { padding: 20px; }
+        .modal-dialog { padding: 40px; max-width: 600px; }
+        .page-footer { padding: 32px 40px; }
+
+        @media (max-width: 900px) {
+          .page-nav { justify-content: center !important; }
+          .page-nav button { width: 100%; max-width: 320px; }
+          .page-hero { padding: 60px 24px !important; }
+          .commission-grid { grid-template-columns: 1fr !important; }
+          .feature-grid, .how-grid, .reward-grid { grid-template-columns: 1fr !important; }
+          .modal-dialog { padding: 32px !important; }
+          .page-footer { padding: 28px 20px !important; }
+        }
+
+        @media (max-width: 600px) {
+          .page-hero { padding: 48px 18px !important; }
+          .page-hero h1 { font-size: clamp(32px, 12vw, 48px) !important; }
+          .page-hero p { font-size: 15px !important; }
+          .page-nav { gap: 10px !important; }
+          .page-nav button { min-width: 0 !important; }
+          .modal-dialog { padding: 24px !important; }
+          .modal-dialog > div { width: 100%; }
+        }
+      `}</style>
     </div>
   )
 }

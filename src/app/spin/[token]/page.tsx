@@ -251,7 +251,7 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
   const isSpinning = state === 'spinning'
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 60px' }}>
+    <div className="spin-root" style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px 60px' }}>
 
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -270,7 +270,7 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
       </div>
 
       {/* Spin counter */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 24 }}>
+      <div className="spin-counter" style={{ display: 'flex', gap: 2, marginBottom: 24 }}>
         {Array.from({ length: session?.spins_total ?? 0 }).map((_, i) => {
           const spinNum = i + 1
           const isDone  = results.some(r => r.spin_number === spinNum)
@@ -287,7 +287,7 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
       </div>
 
       {/* Wheel container */}
-      <div style={{ position: 'relative', marginBottom: 28 }}>
+      <div className="wheel-frame" style={{ position: 'relative', marginBottom: 28 }}>
         {/* Pointer */}
         <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
           width: 0, height: 0, zIndex: 10,

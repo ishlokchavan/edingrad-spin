@@ -1,0 +1,151 @@
+:root {
+  color-scheme: dark;
+}
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: #060608;
+  color: #EDE8DC;
+  font-family: 'DM Mono', monospace;
+}
+.page-root, .spin-root {
+  width: 100%;
+  overflow-x: hidden;
+}
+.page-nav {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-nav button {
+  min-width: 180px;
+}
+.page-hero {
+  padding: 80px 40px;
+}
+.page-hero h1 {
+  font-size: clamp(42px, 8vw, 72px) !important;
+}
+.page-hero p {
+  max-width: 100%;
+}
+.feature-grid,
+.how-grid,
+.reward-grid,
+.commission-grid {
+  gap: 24px;
+}
+.commission-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  align-items: center;
+  justify-items: center;
+}
+.commission-grid > div {
+  width: 100%;
+}
+.commission-divider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 120px;
+  color: #C9A84C;
+  font-size: 42px;
+  font-weight: 900;
+}
+.modal-overlay {
+  padding: 20px;
+}
+.modal-dialog {
+  padding: 40px;
+  max-width: 600px;
+  width: min(100%, 600px);
+}
+.page-footer {
+  padding: 32px 40px;
+}
+.spin-root {
+  width: 100%;
+  padding: 32px 20px 60px;
+  box-sizing: border-box;
+}
+.spin-counter {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wheel-frame {
+  position: relative;
+  margin-bottom: 28px;
+  width: 100%;
+  max-width: 420px;
+}
+.wheel-frame > * {
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .page-nav {
+    justify-content: center !important;
+  }
+  .page-nav button {
+    width: 100%;
+    max-width: 320px;
+  }
+  .page-hero {
+    padding: 60px 24px !important;
+  }
+  .feature-grid,
+  .how-grid,
+  .reward-grid,
+  .commission-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .commission-divider {
+    min-height: auto;
+    margin: 0 auto;
+  }
+  .modal-dialog {
+    padding: 32px !important;
+  }
+  .page-footer {
+    padding: 28px 20px !important;
+  }
+  .spin-root {
+    padding: 28px 18px 60px;
+  }
+  .wheel-frame {
+    max-width: 360px;
+  }
+}
+@media (max-width: 600px) {
+  .page-hero {
+    padding: 48px 18px !important;
+  }
+  .page-hero h1 {
+    font-size: clamp(32px, 12vw, 48px) !important;
+  }
+  .page-hero p {
+    font-size: 15px !important;
+  }
+  .page-nav {
+    gap: 10px !important;
+  }
+  .page-nav button {
+    min-width: 0 !important;
+  }
+  .modal-dialog {
+    padding: 24px !important;
+  }
+  .modal-dialog > div {
+    width: 100%;
+  }
+  .page-footer {
+    padding: 24px 18px !important;
+  }
+  .spin-root {
+    padding: 28px 16px 60px;
+  }
+  .wheel-frame {
+    max-width: 100%;
+  }
+}
