@@ -155,6 +155,22 @@ export default function Root() {
 
       if (sessionError) throw sessionError
 
+      // Notify admins on successful registration.
+      fetch('/api/notify/registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          agency: formData.agency,
+          message: formData.message,
+          token,
+        }),
+      }).catch((notifyErr) => {
+        console.error('Registration notification failed:', notifyErr)
+      })
+
       toast.success('✅ Registration Successful!')
       setShowForm(false)
       setShowThanks(true)

@@ -175,6 +175,20 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
     await sleep(1500)
 
     if (isComplete) {
+      const finalResults = [...results, result]
+      fetch('/api/notify/spin-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: session.token,
+          agentName: agent?.full_name,
+          dealReference: deal?.reference_id,
+          results: finalResults,
+        }),
+      }).catch((notifyErr) => {
+        console.error('Spin completion notification failed:', notifyErr)
+      })
+
       setState('done')
     } else {
       setState('ready')
