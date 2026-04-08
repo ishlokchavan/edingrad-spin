@@ -6,6 +6,7 @@ export interface WheelGift {
   name: string
   emoji: string
   weight: number
+  value_aed?: number | null
   color?: string
 }
 
@@ -32,18 +33,12 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel({ gifts, size =
   useImperativeHandle(ref, () => ({
     spinTo(targetIndex: number, onDone: () => void) {
       if (!gifts.length) return
-      const total = gifts.reduce((s, g) => s + g.weight, 0)
-
-      // Calculate angle for the center of targetIndex slice
-      let acc = 0
-      for (let i = 0; i < targetIndex; i++) acc += (gifts[i].weight / total) * 360
-      const sliceAngle = (gifts[targetIndex].weight / total) * 360
-      const targetAngle = acc + sliceAngle / 2
-
+    const sliceAngle = 360 / gifts.length
+    const targetAngle = targetIndex * sliceAngle + sliceAngle / 2
       // Spin 5–8 full rotations then land on target
       // Wheel is drawn from -90° (top), pointer is at top
       // We want targetAngle to end up at top (0° from top = 270° in standard)
-      const landAt = (360 - targetAngle + 270) % 360
+      const landAt = (360 - targetAngle) % 360
       const startRot = rotRef.current % 360
       const extra = 360 * (5 + Math.floor(Math.random() * 3))
       const endRot = rotRef.current + extra + ((landAt - startRot + 360) % 360)
@@ -78,7 +73,6 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel({ gifts, size =
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
     const cx = W / 2, cy = H / 2, r = Math.min(cx, cy) - 6
-    const total = gifts.reduce((s, g) => s + g.weight, 0)
 
     ctx.clearRect(0, 0, W, H)
     ctx.save()
@@ -87,14 +81,14 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel({ gifts, size =
     ctx.translate(-cx, -cy)
 
     let startAngle = -Math.PI / 2 // start from top
+    const slice = (2 * Math.PI) / gifts.length
     gifts.forEach((g, i) => {
-      const sweep = (g.weight / total) * 2 * Math.PI
       const color = g.color ?? PALETTE[i % PALETTE.length]
 
       // Slice
       ctx.beginPath()
       ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, r, startAngle, startAngle + sweep)
+      ctx.arc(cx, cy, r, startAngle, startAngle + slice)
       ctx.closePath()
       ctx.fillStyle = color
       ctx.fill()
@@ -104,29 +98,71 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(function Wheel({ gifts, size =
       ctx.lineWidth = 2
       ctx.stroke()
 
-      // Label
+      // Emoji + value label on each slice
       ctx.save()
       ctx.translate(cx, cy)
-      ctx.rotate(startAngle + sweep / 2)
-      ctx.textAlign = 'right'
-
-      // Emoji
-      ctx.font = `${Math.min(20, 280 / gifts.length)}px serif`
-      ctx.fillText(g.emoji, r - 12, 6)
-
-      // Name
-      ctx.font = `500 ${Math.min(11, 220 / gifts.length)}px 'DM Mono', monospace`
+      const centerAngle = startAngle + slice / 2
+      ctx.rotate(centerAngle)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
       ctx.fillStyle = '#fff'
-      ctx.shadowColor = 'rgba(0,0,0,0.6)'
-      ctx.shadowBlur = 3
-      const maxChars = Math.floor(r * 0.45 / 6)
-      const label = g.name.length > maxChars ? g.name.slice(0, maxChars - 1) + '…' : g.name
-      ctx.fillText(label, r - 36, 6)
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'
+      ctx.shadowBlur = 6
 
+      const hasValue = g.value_aed != null && g.value_aed > 0
+      const emojiSize = Math.min(hasValue ? 26 : 38, 240 / gifts.length)
+      const emojiY = hasValue ? -10 : 0
+      ctx.font = `${emojiSize}px serif`
+      ctx.fillText(g.emoji, r * 0.58, emojiY)
+
+      if (hasValue) {
+        const valLabel = g.value_aed! >= 1000
+          ? `AED ${(g.value_aed! / 1000).toFixed(g.value_aed! % 1000 === 0 ? 0 : 1)}K`
+          : `AED ${g.value_aed}`
+        const valSize = Math.min(11, 88 / gifts.length)
+        const padX = 5, padY = 3
+        ctx.font = `bold ${valSize}px sans-serif`
+
+        const textW = ctx.measureText(valLabel).width
+        const pillW = textW + padX * 2
+        const pillH = valSize + padY * 2
+        const pillR = pillH / 2
+        const x = r * 0.58
+        const pillTop = emojiY + emojiSize / 2 + 3
+
+        // Dark pill background
+        ctx.shadowBlur = 0
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'
+        ctx.beginPath()
+        ctx.roundRect(x - pillW / 2, pillTop, pillW, pillH, pillR)
+        ctx.fill()
+
+        // Gold text with glow
+        ctx.fillStyle = '#C9A84C'
+        ctx.shadowColor = 'rgba(201,168,76,0.9)'
+        ctx.shadowBlur = 12
+        ctx.fillText(valLabel, x, pillTop + pillH / 2)
+      }
       ctx.restore()
-      startAngle += sweep
+
+      // Radial divider
+      ctx.beginPath()
+      ctx.strokeStyle = '#00000044'
+      ctx.lineWidth = 3
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(cx + r * Math.cos(startAngle), cy + r * Math.sin(startAngle))
+      ctx.stroke()
+
+      startAngle += slice
     })
     ctx.restore()
+
+    // Outer ring
+    ctx.beginPath()
+    ctx.arc(cx, cy, r + 4, 0, 2 * Math.PI)
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+    ctx.lineWidth = 6
+    ctx.stroke()
 
     // Center cap
     ctx.beginPath()
