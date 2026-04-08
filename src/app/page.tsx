@@ -1,7 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getDb } from '@/lib/db'
 import { toast } from 'sonner'
+import dynamic from 'next/dynamic'
+import type { WheelHandle, WheelGift } from './spin/[token]/Wheel'
+
+const DemoWheel = dynamic(() => import('./spin/[token]/Wheel'), { ssr: false })
 
 const C = {
   bg: '#060608', surface: '#0F0E13', surface2: '#161520',
@@ -25,7 +29,36 @@ export default function Root() {
   })
   const [loading, setLoading] = useState(false)
   const [gifts, setGifts] = useState<Gift[]>([])
+  const [demoSpinning, setDemoSpinning] = useState(false)
+  const [demoResult, setDemoResult] = useState<{ name: string; emoji: string; value_aed: number | null } | null>(null)
+  const demoWheelRef = useRef<WheelHandle>(null)
   const db = getDb()
+
+  const DEMO_PRIZES: WheelGift[] = [
+    { id: 'd1', name: 'Travel Package', emoji: '✈️', weight: 1, value_aed: 20000 },
+    { id: 'd2', name: 'Luxury Watch', emoji: '⌚', weight: 1, value_aed: 15000 },
+    { id: 'd3', name: 'Cash Bonus', emoji: '💰', weight: 1, value_aed: 10000 },
+    { id: 'd4', name: 'Gold Voucher', emoji: '🥇', weight: 1, value_aed: 8000 },
+    { id: 'd5', name: 'Weekend Getaway', emoji: '🏙️', weight: 1, value_aed: 5000 },
+    { id: 'd6', name: 'Tech Package', emoji: '📱', weight: 1, value_aed: 7000 },
+    { id: 'd7', name: 'Spa Retreat', emoji: '🧖', weight: 1, value_aed: 3000 },
+    { id: 'd8', name: 'Cash Prize', emoji: '💵', weight: 1, value_aed: 25000 },
+  ]
+
+  const demoPrizes: WheelGift[] = (gifts.length > 0
+    ? gifts.slice(0, 8).map(g => ({ id: g.id, name: g.name, emoji: g.emoji, weight: 1, value_aed: g.value_aed }))
+    : DEMO_PRIZES)
+
+  async function demoSpin() {
+    if (demoSpinning || !demoWheelRef.current || demoPrizes.length === 0) return
+    setDemoSpinning(true)
+    setDemoResult(null)
+    const idx = Math.floor(Math.random() * demoPrizes.length)
+    await new Promise<void>(resolve => { demoWheelRef.current!.spinTo(idx, resolve) })
+    const won = demoPrizes[idx]
+    setDemoResult({ name: won.name, emoji: won.emoji, value_aed: won.value_aed ?? null })
+    setDemoSpinning(false)
+  }
 
   useEffect(() => {
     loadRewards()
@@ -391,6 +424,133 @@ export default function Root() {
             <StepCard number="02" title="Earn Commission" description="Receive 80% of deal value instantly." />
             <StepCard number="03" title="Get Spins" description="Unlock 3 bonus spins per closed deal." />
             <StepCard number="04" title="Win Rewards" description="Spin the wheel and win premium prizes." />
+          </div>
+        </div>
+      </div>
+
+      {/* Try Your Luck — Demo Spin */}
+      <div className="demo-section" style={{ padding: '80px 40px', background: C.bg, position: 'relative', overflow: 'hidden' }}>
+        {/* Ambient glow */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          width: 600, height: 600, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)',
+          pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
+          {/* Heading */}
+          <div style={{ textAlign: 'center', marginBottom: 52 }}>
+            <div style={{ display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)',
+              borderRadius: 99, padding: '4px 14px', fontSize: 10, color: C.gold,
+              letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16 }}>
+              Interactive Demo
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(36px,6vw,52px)',
+              fontWeight: 900, marginBottom: 14, lineHeight: 1.1 }}>
+              Try Your Luck
+            </h2>
+            <p style={{ color: C.text2, fontSize: 15, maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
+              Spin the demo wheel to see what real agents win. Close a deal with Edingrad to spin for real prizes.
+            </p>
+          </div>
+
+          {/* Layout: wheel + result side by side on desktop */}
+          <div className="demo-layout" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 48, flexWrap: 'wrap' }}>
+
+            {/* Wheel column */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)',
+                  width: 0, height: 0, zIndex: 10,
+                  borderLeft: '12px solid transparent', borderRight: '12px solid transparent',
+                  borderTop: '28px solid #C9A84C',
+                  filter: 'drop-shadow(0 2px 6px rgba(201,168,76,0.5))' }} />
+                <DemoWheel ref={demoWheelRef} gifts={demoPrizes} size={300} spinning={demoSpinning} />
+              </div>
+
+              <button
+                onClick={demoSpin}
+                disabled={demoSpinning}
+                style={{
+                  background: demoSpinning ? C.surface : C.gold,
+                  color: demoSpinning ? C.text3 : C.bg,
+                  border: 'none', padding: '14px 40px', fontSize: 13, fontWeight: 700,
+                  letterSpacing: '0.15em', textTransform: 'uppercase',
+                  cursor: demoSpinning ? 'not-allowed' : 'pointer',
+                  fontFamily: "'DM Mono', monospace",
+                  boxShadow: demoSpinning ? 'none' : '0 0 28px rgba(201,168,76,0.35)',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { if (!demoSpinning) e.currentTarget.style.transform = 'scale(1.05)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+              >
+                {demoSpinning ? 'SPINNING…' : demoResult ? '🎡 SPIN AGAIN' : '🎡 SPIN THE WHEEL'}
+              </button>
+            </div>
+
+            {/* Result / CTA column */}
+            <div className="demo-result-col" style={{ width: 300, minHeight: 260, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {!demoResult && !demoSpinning && (
+                <div style={{ textAlign: 'center', padding: '32px 24px',
+                  border: `1px dashed ${C.border}`, borderRadius: 16 }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 8 }}>What will you win?</div>
+                  <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6 }}>
+                    Spin the wheel to discover the prizes waiting for Edingrad agents.
+                  </div>
+                </div>
+              )}
+
+              {demoSpinning && (
+                <div style={{ textAlign: 'center', padding: '32px 24px' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16, animation: 'spin 0.8s linear infinite', display: 'inline-block' }}>🎡</div>
+                  <div style={{ fontSize: 13, color: C.gold, letterSpacing: '0.15em', animation: 'pulse 1s ease infinite' }}>
+                    SPINNING…
+                  </div>
+                </div>
+              )}
+
+              {demoResult && !demoSpinning && (
+                <div style={{ animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+                  <div style={{ background: C.surface, border: `1px solid ${C.borderGold}`,
+                    borderRadius: 16, padding: '28px 24px', marginBottom: 16, textAlign: 'center' }}>
+                    <div style={{ fontSize: 64, marginBottom: 12 }}>{demoResult.emoji}</div>
+                    <div style={{ fontSize: 10, letterSpacing: '0.2em', color: C.gold, marginBottom: 6 }}>YOU&apos;D WIN</div>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 900, marginBottom: 10 }}>
+                      {demoResult.name}
+                    </div>
+                    {demoResult.value_aed && (
+                      <div style={{ display: 'inline-block',
+                        background: 'rgba(61,170,106,0.1)', border: '1px solid rgba(61,170,106,0.3)',
+                        borderRadius: 99, padding: '4px 14px' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: C.green, fontFamily: "'DM Mono', monospace" }}>
+                          AED {demoResult.value_aed.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 12, color: C.text3, marginBottom: 14, lineHeight: 1.6 }}>
+                      This is a demo — close a real deal with Edingrad and this could be yours.
+                    </p>
+                    <button
+                      onClick={() => setShowForm(true)}
+                      style={{
+                        width: '100%', background: C.gold, color: C.bg,
+                        border: 'none', padding: '13px 24px', fontSize: 12, fontWeight: 700,
+                        letterSpacing: '0.15em', textTransform: 'uppercase',
+                        cursor: 'pointer', fontFamily: "'DM Mono', monospace",
+                        boxShadow: '0 0 24px rgba(201,168,76,0.3)', transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
+                    >
+                      REGISTER TO WIN FOR REAL →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -779,7 +939,13 @@ export default function Root() {
           .page-nav button { min-width: 0 !important; }
           .modal-dialog { padding: 24px !important; }
           .modal-dialog > div { width: 100%; }
+          .demo-section { padding: 60px 20px !important; }
+          .demo-result-col { width: 100% !important; }
         }
+
+        @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse   { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+        @keyframes popIn   { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
       `}</style>
     </div>
   )
