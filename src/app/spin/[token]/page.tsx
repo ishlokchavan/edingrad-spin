@@ -48,7 +48,7 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
   const [currentSpin, setCurrent] = useState(0)   // which spin we're on (1-based)
   const [latestResult, setLatest] = useState<SpinResult | null>(null)
   const [wheelGifts, setWheelGifts] = useState<WheelGift[]>([])
-  const [allocationMap, setAllocationMap] = useState<Record<number, string>>({})
+  const [allocationMap, setAllocationMap] = useState<Record<number, SpinConfig>>({})
   const [showPrizes, setShowPrizes] = useState(false)
   const wheelRef = useRef<WheelHandle>(null)
   const db = getDb()
@@ -83,8 +83,8 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
 
     // Build allocation map from the session's spin_configurations
     const spinConfigs: SpinConfig[] = s.spin_configurations ?? []
-    const map: Record<number, string> = {}
-    spinConfigs.forEach(cfg => { map[cfg.spin_number] = cfg.gift_id })
+    const map: Record<number, SpinConfig> = {}
+    spinConfigs.forEach(cfg => { map[cfg.spin_number] = cfg })
     setAllocationMap(map)
 
     // Load existing results
@@ -117,32 +117,32 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
     const spinNum = session.spins_used + results.length + 1
     setCurrent(spinNum)
 
-    // Always use the admin-configured gift for this spin
-    const fixedGiftId = allocationMap[spinNum]
-    const winner = gifts.find(g => g.id === fixedGiftId)
-    if (!winner) { setState('ready'); return }
-    const winnerIdx = wheelGifts.findIndex(g => g.id === winner.id)
+    // Determine winner from admin config
+    const spinConfig = allocationMap[spinNum]
+    const canWin = spinConfig?.can_win && spinConfig?.gift_id
+    const winner = canWin ? gifts.find(g => g.id === spinConfig.gift_id) : null
+    const winnerIdx = winner ? wheelGifts.findIndex(g => g.id === winner.id) : Math.floor(Math.random() * wheelGifts.length)
 
     // Animate wheel
     await new Promise<void>(resolve => {
-      wheelRef.current!.spinTo(winnerIdx === -1 ? 0 : winnerIdx, resolve)
+      wheelRef.current!.spinTo(winnerIdx === -1 ? Math.floor(Math.random() * wheelGifts.length) : winnerIdx, resolve)
     })
 
     // Save result
     const result: SpinResult = {
       spin_number: spinNum,
-      gift_name: winner.name,
-      gift_emoji: winner.emoji,
-      gift_value_aed: winner.value_aed,
+      gift_name: winner?.name ?? 'Better Luck Next Time',
+      gift_emoji: winner?.emoji ?? '🎁',
+      gift_value_aed: winner?.value_aed ?? null,
     }
 
     await db.from('spin_results').insert({
       session_id: session.id,
       spin_number: spinNum,
-      gift_id: winner.id,
-      gift_name: winner.name,
-      gift_emoji: winner.emoji,
-      gift_value_aed: winner.value_aed,
+      gift_id: winner?.id ?? null,
+      gift_name: result.gift_name,
+      gift_emoji: result.gift_emoji,
+      gift_value_aed: result.gift_value_aed,
     })
 
     setLatest(result)
