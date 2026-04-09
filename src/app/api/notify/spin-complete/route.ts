@@ -13,6 +13,7 @@ interface SpinCompleteBody {
   agentName?: string
   agentEmail?: string
   dealReference?: string
+  dealId?: string
   results?: SpinResultItem[]
 }
 
@@ -28,7 +29,10 @@ export async function POST(req: Request) {
     }
 
     const totalValue = body.results.reduce((sum, item) => sum + (item.gift_value_aed ?? 0), 0)
-    const spinUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/spin/${body.token}`
+    const requestOrigin = new URL(req.url).origin
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || requestOrigin).replace(/\/$/, '')
+    const spinUrl = `${appUrl}/spin/${body.token}`
+    const dealRefText = body.dealReference || body.dealId || '-'
 
     const rows = body.results
       .map(r => `<tr><td>${r.spin_number}</td><td>${r.gift_emoji} ${r.gift_name}</td><td>${formatCurrency(r.gift_value_aed)}</td></tr>`)
@@ -41,9 +45,9 @@ export async function POST(req: Request) {
         <ul>
           <li><strong>Agent:</strong> ${body.agentName}</li>
           <li><strong>Agent Email:</strong> ${body.agentEmail || '-'}</li>
-          <li><strong>Deal Reference:</strong> ${body.dealReference || '-'}</li>
+          <li><strong>Deal Reference:</strong> ${dealRefText}</li>
           <li><strong>Token:</strong> ${body.token}</li>
-          <li><strong>Spin Link:</strong> ${spinUrl}</li>
+          <li><strong>Spin Link:</strong> <a href="${spinUrl}">${spinUrl}</a></li>
           <li><strong>Total Prize Value:</strong> ${formatCurrency(totalValue)}</li>
         </ul>
         <table style="border-collapse:collapse;width:100%;margin-top:12px">

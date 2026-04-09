@@ -30,7 +30,7 @@ interface Session {
   spin_configurations: SpinConfig[]
 }
 
-interface Agent { id: string; full_name: string }
+interface Agent { id: string; full_name: string; email?: string | null }
 interface Deal { id: string; reference_id: string; slab_id: string }
 interface Gift { id: string; name: string; emoji: string; weight: number; value_aed: number | null; description: string | null }
 interface SpinResult { spin_number: number; gift_name: string; gift_emoji: string; gift_value_aed: number | null }
@@ -75,7 +75,7 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
 
     // Load agent & deal in parallel
     const [{ data: ag }, { data: dealData }] = await Promise.all([
-      db.from('agents').select('id,full_name').eq('id', s.agent_id).single(),
+      db.from('agents').select('id,full_name,email').eq('id', s.agent_id).single(),
       db.from('deals').select('id,reference_id,slab_id').eq('id', s.deal_id).single(),
     ])
     setAgent(ag as Agent)
@@ -182,7 +182,9 @@ export default function SpinPage({ params }: { params: Promise<{ token: string }
         body: JSON.stringify({
           token: session.token,
           agentName: agent?.full_name,
+          agentEmail: agent?.email,
           dealReference: deal?.reference_id,
+          dealId: session.deal_id,
           results: finalResults,
         }),
       }).catch((notifyErr) => {
