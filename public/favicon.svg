@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#060608"/>
+  <!-- Gold top accent bar -->
+  <rect x="4" y="3" width="24" height="2" rx="1" fill="#C9A84C"/>
+  <!-- E letterform -->
+  <text
+    x="16"
+    y="23"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="19"
+    font-weight="700"
+    fill="#C9A84C"
+  >E</text>
+</svg>

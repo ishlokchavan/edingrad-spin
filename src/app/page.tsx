@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getDb } from '@/lib/db'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import type { WheelHandle, WheelGift } from './spin/[token]/Wheel'
 
 const DemoWheel = dynamic(() => import('./spin/[token]/Wheel'), { ssr: false })
@@ -17,9 +18,39 @@ const C = {
 
 interface Gift { id: string; name: string; emoji: string; value_aed: number | null; description: string | null }
 
+const LANDING_GIFT_COUNT = 8
+const MID_TIER_MIN = 30000
+const PREMIUM_TIER_MIN = 100000
+const MID_TIER_TARGET = 5
+const PREMIUM_TIER_TARGET = 3
+
+function pickLandingGifts(source: Gift[]) {
+  const sorted = [...source].sort((a, b) => (b.value_aed ?? 0) - (a.value_aed ?? 0))
+  const premium = sorted.filter(g => (g.value_aed ?? 0) >= PREMIUM_TIER_MIN)
+  const midTier = sorted.filter(g => {
+    const value = g.value_aed ?? 0
+    return value >= MID_TIER_MIN && value < PREMIUM_TIER_MIN
+  })
+
+  const selected: Gift[] = [
+    ...midTier.slice(0, MID_TIER_TARGET),
+    ...premium.slice(0, PREMIUM_TIER_TARGET),
+  ]
+
+  const selectedIds = new Set(selected.map(g => g.id))
+  const fillPool = sorted.filter(g => !selectedIds.has(g.id))
+  for (const gift of fillPool) {
+    if (selected.length >= LANDING_GIFT_COUNT) break
+    selected.push(gift)
+  }
+
+  return selected.slice(0, LANDING_GIFT_COUNT)
+}
+
 export default function Root() {
   const [showForm, setShowForm] = useState(false)
   const [showThanks, setShowThanks] = useState(false)
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -46,8 +77,39 @@ export default function Root() {
   ]
 
   const demoPrizes: WheelGift[] = (gifts.length > 0
-    ? gifts.slice(0, 8).map(g => ({ id: g.id, name: g.name, emoji: g.emoji, weight: 1, value_aed: g.value_aed }))
+    ? gifts.slice(0, LANDING_GIFT_COUNT).map(g => ({ id: g.id, name: g.name, emoji: g.emoji, weight: 1, value_aed: g.value_aed }))
     : DEMO_PRIZES)
+
+  const FAQ_ITEMS = [
+    {
+      q: 'Do I need to leave my current setup to join?',
+      a: 'No. There is no exclusivity requirement. You can close deals with us on your own terms, on your own schedule.',
+    },
+    {
+      q: 'Is there a fee to join?',
+      a: 'None. Zero.',
+    },
+    {
+      q: 'What counts as a closed deal?',
+      a: 'Any completed transaction with our network of developers. Full details are confirmed during onboarding.',
+    },
+    {
+      q: 'When do I get my commission?',
+      a: 'Commission is released after the deal is formally completed and verified in our system. The exact payout timeline is shared clearly during onboarding.',
+    },
+    {
+      q: 'Is the spin wheel actually random?',
+      a: 'Yes. Every closed deal earns you spins. The wheel is live, transparent, and tracked on your dashboard.',
+    },
+    {
+      q: 'Who is Edingrad and why should I trust this?',
+      a: 'This program is backed by Edingrad Real Estate LLC, a licensed Dubai brokerage.',
+    },
+    {
+      q: 'What if I have more questions?',
+      a: 'Register your interest and we will walk you through everything on a quick call.',
+    },
+  ]
 
   async function demoSpin() {
     if (demoSpinning || !demoWheelRef.current || demoPrizes.length === 0) return
@@ -69,10 +131,11 @@ export default function Root() {
       const { data } = await db
         .from('gifts')
         .select('id,name,emoji,value_aed,description')
-        .limit(8)
+        .eq('is_active', true)
+        .order('value_aed', { ascending: false })
 
       if (data) {
-        setGifts(data as Gift[])
+        setGifts(pickLandingGifts(data as Gift[]))
       }
     } catch (err) {
       console.error('Failed to load rewards:', err)
@@ -122,38 +185,41 @@ export default function Root() {
         throw new Error('Failed to register agent')
       }
 
-      // Fetch an active deal (required by database constraint)
+      // Try to create a spin session when a deal is available.
+      // If no deal exists yet, we still complete registration and notify admins.
+      let token: string | undefined
       const { data: deals, error: dealsError } = await db
         .from('deals')
         .select('id')
         .limit(1)
 
-      if (dealsError) throw dealsError
-      if (!deals || deals.length === 0) {
-        throw new Error('Please create a deal first. Contact admin to set up a deal.')
+      if (dealsError) {
+        console.error('Failed to load deals during registration:', dealsError)
       }
 
-      const dealId = deals[0].id
+      if (deals && deals.length > 0) {
+        const dealId = deals[0].id
+        token = crypto.getRandomValues(new Uint8Array(16))
+          .reduce((s, b) => s + b.toString(16).padStart(2, '0'), '')
 
-      // Generate a unique token for the session
-      const token = crypto.getRandomValues(new Uint8Array(16))
-        .reduce((s, b) => s + b.toString(16).padStart(2, '0'), '')
+        const { error: sessionError } = await db
+          .from('raffle_sessions')
+          .insert([{
+            token,
+            agent_id: agent.id,
+            deal_id: dealId,
+            spins_total: 3,
+            spins_used: 0,
+            is_complete: false,
+          }])
 
-      // Create session linked to this agent and deal
-      const { data: session, error: sessionError } = await db
-        .from('raffle_sessions')
-        .insert([{
-          token,
-          agent_id: agent.id,
-          deal_id: dealId,
-          spins_total: 3,
-          spins_used: 0,
-          is_complete: false,
-        }])
-        .select()
-        .single()
-
-      if (sessionError) throw sessionError
+        if (sessionError) {
+          console.error('Failed to create spin session:', sessionError)
+          token = undefined
+        }
+      } else {
+        toast.info('Application received. Spin session will be activated after deal setup.')
+      }
 
       // Notify admins on successful registration.
       fetch('/api/notify/registration', {
@@ -270,7 +336,7 @@ export default function Root() {
             maxWidth: 700,
             margin: '0 auto 24px',
           }}>
-            Partner with Edingrad on 80/20 commission — and spin the wheel on every closed deal. 
+            Partner with Edingrad on 80/20 commission and spin the wheel on every closed deal.
             Unlock premium rewards, exclusive perks, and life-changing prizes. The more you close, the more you win.
           </p>
 
@@ -413,6 +479,84 @@ export default function Root() {
             lineHeight: 1.8,
           }}>
             <span style={{ color: C.gold, fontWeight: 700 }}>Example:</span> Close a 100K deal → Earn 80K commission + spin the wheel → Win anything from travel packages to luxury watches to cash prizes.
+          </div>
+        </div>
+      </div>
+
+      {/* Ideal Partner Fit */}
+      <div style={{ padding: '70px 40px', background: C.bg }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 42 }}>
+            <div style={{
+              display: 'inline-block',
+              fontSize: 11,
+              color: C.gold,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              marginBottom: 14,
+            }}>
+              Partner Profile
+            </div>
+            <h2 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 46,
+              fontWeight: 900,
+              margin: 0,
+              lineHeight: 1.15,
+            }}>
+              This Is For Closers.
+            </h2>
+          </div>
+
+          <div className="fit-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 24,
+          }}>
+            <div style={{
+              background: C.surface,
+              border: `1px solid ${C.borderGold}`,
+              borderRadius: 14,
+              padding: 28,
+              boxShadow: '0 14px 44px rgba(0,0,0,0.28)',
+            }}>
+              <div style={{
+                fontSize: 13,
+                letterSpacing: '0.14em',
+                color: C.gold,
+                fontWeight: 700,
+                marginBottom: 16,
+              }}>
+                THIS IS FOR YOU IF
+              </div>
+              <div style={{ color: C.text2, fontSize: 14, lineHeight: 1.9 }}>
+                <div style={{ marginBottom: 10 }}>You are a freelance real estate agent in Dubai who is tired of low splits, slow payments, and zero upside beyond your cut.</div>
+                <div style={{ marginBottom: 10 }}>You know how to close. You just want a partner who rewards you for it.</div>
+                <div>If you bring the deals, we bring 80% commission plus spins, prizes, and a rewards structure that makes this job exciting again.</div>
+              </div>
+            </div>
+
+            <div style={{
+              background: C.surface2,
+              border: `1px solid ${C.border}`,
+              borderRadius: 14,
+              padding: 28,
+            }}>
+              <div style={{
+                fontSize: 13,
+                letterSpacing: '0.14em',
+                color: '#E89B91',
+                fontWeight: 700,
+                marginBottom: 16,
+              }}>
+                THIS IS NOT FOR YOU IF
+              </div>
+              <div style={{ color: C.text2, fontSize: 14, lineHeight: 1.9 }}>
+                <div style={{ marginBottom: 10 }}>You are looking for a salary.</div>
+                <div style={{ marginBottom: 10 }}>You want hand-holding or leads handed to you.</div>
+                <div>This is a closer&apos;s program designed for agents who take ownership and perform.</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -574,7 +718,7 @@ export default function Root() {
       {/* Dynamic Rewards Section */}
       {gifts.length > 0 && (
         <div style={{ padding: '60px 40px', background: C.surface }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
               <h2 style={{
                 fontFamily: "'Playfair Display', serif",
@@ -585,13 +729,13 @@ export default function Root() {
                 What You Can Win
               </h2>
               <p style={{ color: C.text2, fontSize: 16 }}>
-                Premium rewards await. Spin to claim yours.
+                Representative rewards across AED 30K-99K and AED 100K+ performance tiers.
               </p>
             </div>
 
             <div className="reward-grid" style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
               gap: 24,
             }}>
               {gifts.map((gift) => (
@@ -601,6 +745,79 @@ export default function Root() {
           </div>
         </div>
       )}
+
+      {/* FAQ */}
+      <div className="faq-section" style={{ padding: '70px 40px', background: C.bg }}>
+        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <h2 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 46,
+              fontWeight: 900,
+              marginBottom: 10,
+            }}>
+              FAQ
+            </h2>
+            <p style={{ color: C.text2, fontSize: 15, margin: 0 }}>
+              Everything serious closers ask before joining.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gap: 12 }}>
+            {FAQ_ITEMS.map((item, idx) => {
+              const isOpen = openFaq === idx
+              return (
+                <div
+                  key={item.q}
+                  style={{
+                    background: isOpen ? C.surface : C.surface2,
+                    border: `1px solid ${isOpen ? C.borderGold : C.border}`,
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      color: C.text,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '18px 20px',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      fontFamily: "'DM Mono', monospace",
+                    }}
+                  >
+                    <span>{item.q}</span>
+                    <span style={{ color: C.gold, fontSize: 18, lineHeight: 1 }}>{isOpen ? '−' : '+'}</span>
+                  </button>
+
+                  {isOpen && (
+                    <div style={{
+                      borderTop: `1px solid ${C.border}`,
+                      padding: '0 20px 18px',
+                      fontSize: 14,
+                      color: C.text2,
+                      lineHeight: 1.8,
+                    }}>
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Registration Form Modal */}
       {showForm && (
@@ -780,7 +997,7 @@ export default function Root() {
                 marginTop: 16,
                 lineHeight: 1.6,
               }}>
-                By submitting you agree to be contacted by Edingrad Real Estate. No commitment until you sign the formal partnership agreement.
+                By submitting, you agree to be contacted by Edingrad Real Estate. No commitment applies until you sign the formal partnership agreement.
               </p>
             </form>
           </div>
@@ -795,7 +1012,16 @@ export default function Root() {
         color: C.text3,
         fontSize: 12,
       }}>
-        © 2026 Edingrad Real Estate Brokers LLC · Licensed by RERA · Dubai, UAE
+        <div style={{ marginBottom: 10 }}>© 2026 Edingrad Real Estate LLC · Licensed by RERA · Dubai, UAE</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Link href="/privacy-policy" style={{ color: C.text2, textDecoration: 'none' }}>Privacy Policy</Link>
+          <span style={{ color: C.text3 }}>·</span>
+          <Link href="/cookie-policy" style={{ color: C.text2, textDecoration: 'none' }}>Cookie Policy</Link>
+          <span style={{ color: C.text3 }}>·</span>
+          <Link href="/terms" style={{ color: C.text2, textDecoration: 'none' }}>Terms of Use</Link>
+          <span style={{ color: C.text3 }}>·</span>
+          <Link href="/security" style={{ color: C.text2, textDecoration: 'none' }}>Security</Link>
+        </div>
       </div>
 
       {/* Thank You Screen Modal */}
@@ -871,7 +1097,7 @@ export default function Root() {
                   <span style={{ color: C.gold, fontWeight: 700 }}>3. Earn Spins</span> — Each deal = multiple spins awarded
                 </div>
                 <div>
-                  <span style={{ color: C.gold, fontWeight: 700 }}>4. Receive Link</span> — We&apos;ll send you your spin link via email/ whatsapp
+                  <span style={{ color: C.gold, fontWeight: 700 }}>4. Receive Link</span> — We&apos;ll send you your spin link via email or WhatsApp
                 </div>
               </div>
             </div>
@@ -931,18 +1157,23 @@ export default function Root() {
         .page-hero { padding: 80px 40px; }
         .page-hero h1 { font-size: clamp(42px, 8vw, 72px) !important; }
         .page-hero p { max-width: 100%; }
-        .feature-grid, .how-grid, .reward-grid { gap: 24px; }
+        .feature-grid, .how-grid, .reward-grid, .fit-grid { gap: 24px; }
         .commission-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
         .modal-overlay { padding: 20px; }
         .modal-dialog { padding: 40px; max-width: 600px; }
         .page-footer { padding: 32px 40px; }
+
+        @media (max-width: 1280px) {
+          .reward-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+        }
 
         @media (max-width: 900px) {
           .page-nav { justify-content: center !important; }
           .page-nav button { width: 100%; max-width: 320px; }
           .page-hero { padding: 60px 24px !important; }
           .commission-grid { grid-template-columns: 1fr !important; }
-          .feature-grid, .how-grid, .reward-grid { grid-template-columns: 1fr !important; }
+          .feature-grid, .how-grid, .fit-grid { grid-template-columns: 1fr !important; }
+          .reward-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           .modal-dialog { padding: 32px !important; }
           .page-footer { padding: 28px 20px !important; }
         }
@@ -957,6 +1188,8 @@ export default function Root() {
           .modal-dialog > div { width: 100%; }
           .demo-section { padding: 60px 20px !important; }
           .demo-result-col { width: 100% !important; }
+          .faq-section { padding: 60px 20px !important; }
+          .reward-grid { grid-template-columns: 1fr !important; }
         }
 
         @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -1033,6 +1266,10 @@ function RewardCard({ gift }: { gift: Gift }) {
       borderRadius: 8,
       padding: 20,
       textAlign: 'center',
+      minHeight: 182,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
       transition: 'all 0.3s ease',
     }}
       onMouseEnter={(e) => {
